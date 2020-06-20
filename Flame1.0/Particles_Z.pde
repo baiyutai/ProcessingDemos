@@ -1,43 +1,41 @@
-float radius = 10;
-float theta = 0.0, cameraRadius = 500.0, ptheta = 0.0;
-float phi, pPhi;
-int maxNumParticles = 10000, numParticles = 0;
-float rminParticle = 0.1, rmaxParticle = 1.0;
-float lifeminParticle = 2, lifemaxParticle = 10;
-float velminParticle = -5, velmaxParticle = -8;
+float radius = 10; // fire range
+float theta = 0.0, cameraRadius = 200.0, phi = PI/2; // camera parameters
+
+// particle parameters
+int maxNumParticles = 10000, numParticles = 0, genRate = 3000;
+float sizeMin = 0.1, sizeMax = 1.0;
+float lifeMin = 1, lifeMax = 5;
+float velMin = -5, velMax = -8;
 Particle particles[] = new Particle[maxNumParticles];
 
-//Setup is called once
 void setup() {
-  size(300, 600, P3D); noStroke(); //600x600 3D win
-  theta = 0.0; cameraRadius = 500.0;
-  phi = PI/2; sphereDetail(5);
+  size(300, 600, P3D); noStroke(); //300x600 3D window
 } 
 
-float genRate = 3000;
 void update(float dt){
-  float toGen = genRate * dt;
-  float fracPart = toGen - int(toGen);
-  if (random(1) < fracPart) toGen = int(toGen) + 1;
-  else toGen = int(toGen);
+  int toGen = (int)(genRate * dt);
+  if (random(1) < genRate * dt - toGen) toGen++;
+  
+  // move dead particles to the end of the array
+  // decrease the length of the array
   int i = 0;
   while (i < numParticles){
-    if (particles[i].IsAlive()) i += 1;
-    else {
-      particles[i] = particles[numParticles-1];
-      numParticles -= 1;
-    }
+    if (particles[i].IsAlive()) i++;
+    else particles[i] = particles[--numParticles];
   }
-  for (i = 0; i < toGen; ++i){
-    if (numParticles >= maxNumParticles) break;
-    float tempR = random(1)*radius;
-    float tempTheta = random(1)*PI*2;
-    Vec3 pos = new Vec3(tempR*cos(tempTheta),0,tempR*sin(tempTheta));
-    Vec3 vel = new Vec3(0.0,velminParticle+random(1)*(velmaxParticle-velminParticle),0.0);
-    particles[numParticles] = new Particle(rminParticle+random(1)*(rmaxParticle - rminParticle), 
-                                           lifeminParticle+random(1)*(lifemaxParticle - lifeminParticle), pos, vel);
-    numParticles += 1;
+  
+  // generate new particles
+  for (i = numParticles; i < toGen + numParticles && i < maxNumParticles; ++i){
+    float sampleR = sampling(0, radius), sampleTheta = sampling(0, PI*2);
+    // Particle(size, lifetime, position, velocity)
+    particles[i] = new Particle(sampling(sizeMin, sizeMax), 
+                                sampling(lifeMin, lifeMax),
+                                new Vec3(sampleR*cos(sampleTheta),0,sampleR*sin(sampleTheta)),
+                                new Vec3(0, sampling(velMin, velMax), 0));
   }
+  numParticles = min(numParticles + toGen, maxNumParticles);
+  
+  // update each particle
   for (i = 0; i < numParticles; ++i){ particles[i].Update(dt); }
 }
 
@@ -45,42 +43,43 @@ void update(float dt){
 //Draw is called every frame
 void draw() {
   update(1.0/frameRate);
-  
-  background(0);  //White background
-  
+  background(0); // black background
   camera(cos(theta)*cameraRadius*sin(phi), cos(phi)*cameraRadius, -sin(theta)*cameraRadius*sin(phi),
          0.0, 0.0, 0.0,
          0.0, 1.0, 0.0);
-  
-  //fill(240,70,30, 100);          //Green material
-  //specular(120, 120, 180);  //Setup lights… 
-  //ambientLight(90,90,90);   //More light… (environmental)
-  //lightSpecular(255,255,255); shininess(20);  //More light…
-  //directionalLight(200, 200, 200, -1, 1, -1); //More light…
-  //translate(300,position);
+  // draw particles
   for (int i = 0; i < numParticles; ++i){
     pushMatrix();
     translate(particles[i].pos.x, particles[i].pos.y, particles[i].pos.z);
-    fill(particles[i].r, particles[i].g, particles[i].b, particles[i].transparency*255);
-    sphere(particles[i].size);
+    fill(particles[i].colorp.x, particles[i].colorp.y, particles[i].colorp.z, particles[i].transparency*255);
+    box(particles[i].sizeNow);
     popMatrix();
   }
-  //sphere(radius);   //Draw sphere
 }
 
-float preMouseX=0.0, preMouseY=0.0;
+// parameters used to save the previous condition
+float preMouseX, preMouseY, pPhi, pTheta;
+
+// save states
 void mousePressed(){
   preMouseX = mouseX; preMouseY = mouseY;
-  ptheta = theta;
+  pTheta = theta;
   pPhi = phi;
 }
 
+// move camera position on a sphere surface
 void mouseDragged(){
-  theta = ptheta + 3*(mouseX - preMouseX)/cameraRadius;
+  theta = pTheta - 3*(mouseX - preMouseX)/cameraRadius;
   phi = pPhi + 3*(mouseY - preMouseY)/cameraRadius;
+  phi = min(max(phi, 0.001), PI-0.001);  // clamp phi, set the border condition experimentally
 }
 
+// change distance(camera, fire center) by mousewheel
 void mouseWheel(MouseEvent event){
   cameraRadius += 3*event.getCount();
+}
+
+float sampling(float a, float b){
+ return random(b-a)+a;
 }
   
