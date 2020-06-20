@@ -1,5 +1,5 @@
 // boids parameters
-static int numMax = 1000;
+static int numMax = 900;
 int numBoids;
 float genRate;
 Boid[] boids = new Boid[numMax];
@@ -11,8 +11,8 @@ float cameraAngle;
 void setup(){
   size(1920,1080,P3D);
   // camera initialization
-  cameraPos = new Vec3(0,0,200);
-  cameraAngle = -PI/2;
+  cameraPos = new Vec3(-138.7, -33.5, 71.51);
+  cameraAngle = -0.42079687;
   cameraDir = new Vec3(cos(cameraAngle),0,sin(cameraAngle));
   // boids initialization
   numBoids = 0;
@@ -42,7 +42,7 @@ void update(float dt){
 void draw(){
   cameraUpdate(0.5);
   update(1/frameRate);
-  println(frameRate);
+  //println(frameRate);
   
   // background initialization
   background(255);
