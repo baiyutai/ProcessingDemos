@@ -5,9 +5,9 @@ public class Boid{
   public Boid(){
     maxVel = 8;
     maxAcc = 0.6;
-    this.position = new Vec3(random(-50)-50,random(-50)-50,random(-50)-50);
-    this.velocity = new Vec3(random(maxVel*0.5), random(maxVel*0.1), random(maxVel*0.5));
-    this.acceleration = new Vec3();    
+    this.position = new Vec3(random(-50)-50,random(-50)-20,random(-50)-50);
+    this.velocity = new Vec3(random(maxVel), 0.0, random(maxVel));
+    this.acceleration = new Vec3();
   }
   
   // anticipated position
@@ -16,8 +16,8 @@ public class Boid{
   }
   
   public boolean IsAlive(){
-    if (this.position.y > 60.0) return false; // fall on the ground
-    if (this.position.distanceTo(new Vec3(0,-20,0)) < 28) return false; // collision with the tree
+    if (this.position.y > 60.0 - 3.0) return false; // fall on the ground
+    if (this.position.distanceTo(new Vec3(0,-20,0)) < 28 + 3.0) return false; // collision with the tree
     return true;
   }
   
