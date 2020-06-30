@@ -41,9 +41,12 @@ int sphereRadius = 100;
 Vec3 spherePos = new Vec3(400, 400, 0);
 
 void draw(){
-  update(1/frameRate);
-  background(255);
   cameraUpdate(0.05);
+  obstacleUpdate(5.0);
+  for (int t = 0; t < 30; t++)
+    update(1.0/300);
+  
+  background(255);
   camera(cameraPos.x,cameraPos.y, cameraPos.z,
   cameraPos.x+cameraDir.x, cameraPos.y+cameraDir.y, cameraPos.z+cameraDir.z,
   0.0,1.0,0.0);
@@ -71,23 +74,28 @@ void draw(){
 }
 
 // string parameters
-float kd = 20, ks = 300;
-float vertL0 = (downleft.x - upleft.x)/(xh-1), g = 20;
+float kd = 50, ks = 200;
+float vertL0 = downleft.distanceTo(upleft)/(xh-1), g = 5.0;
 float horiL0 = upright.distanceTo(upleft) / (yh-1);
-float kd_t = 5.0, ks_t = 5.0;
+float kd_t = 40, ks_t = 200;
 void update(float dt){
   // update forces
+  for (int i = 0; i < xh; i++)
+   for (int j = 0; j < yh; j++){
+     acc[i*yh+j].x = 0.0;
+     acc[i*yh+j].y = g;
+     acc[i*yh+j].z = 0.0;
+   }
   for (int j = 0; j < yh; j++){
     for (int i = 1; i < xh; i++){
-      // gravity
-      acc[i*yh+j].x = 0.0; acc[i*yh+j].y = 9.8; acc[i*yh+j].z = 0.0;
-      
       // vertical string forces
-      Vec3 e = (pos[i*yh+j].minus(pos[(i-1)*yh+j])).normalized();
-      float fs = -ks*(vertL0 - pos[i*yh+j].distanceTo(pos[(i-1)*yh+j]));
-      float fd = -kd*dot(e, vel[(i-1)*yh+j].minus(vel[i*yh+j]));
-      acc[(i-1)*yh+j].add(e.times(fs+fd));
-      acc[i*yh+j].subtract(e.times(fs+fd));
+      Vec3 e = pos[i*yh+j].minus(pos[(i-1)*yh+j]);
+      float fs = -ks*(vertL0 - e.length());
+      e.normalize();
+      float fd = -kd*(dot(e, vel[(i-1)*yh+j])-dot(e,vel[i*yh+j]));
+      e.mul(fs+fd);
+      acc[(i-1)*yh+j].add(e);
+      acc[i*yh+j].subtract(e);
     }
   }
   for (int i = 1; i < xh; i++)
@@ -96,7 +104,7 @@ void update(float dt){
       Vec3 e = pos[i*yh+j+1].minus(pos[i*yh+j]);
       float fs = -ks_t*(horiL0 - e.length());
       e.normalize();
-      float fd = -kd_t*dot(e, vel[i*yh+j].minus(vel[i*yh+j+1]));
+      float fd = -kd_t*(dot(e, vel[i*yh+j])-dot(e,vel[i*yh+j+1]));
       acc[i*yh+j].add(e.times(fs+fd));
       acc[i*yh+j+1].subtract(e.times(fs+fd));
     }
@@ -144,14 +152,36 @@ void cameraUpdate(float step){
   }
 }
 
+//control obstacle
+void obstacleUpdate(float step){
+  Vec3 addPos = new Vec3(0,0,0);
+  if (wPressed) addPos.y -= 1.0;
+  if (sPressed) addPos.y += 1.0;
+  if (aPressed) addPos.x -= 1.0;
+  if (dPressed) addPos.x += 1.0;
+  if (qPressed) addPos.z -= 1.0;
+  if (ePressed) addPos.z += 1.0;
+  if (addPos.length()>0.5){
+    addPos.normalize();
+    spherePos.add(addPos.times(step));
+  }
+}
+
 boolean leftPressed, rightPressed, upPressed, downPressed;
 boolean ctrlPressed;
+boolean wPressed, aPressed, sPressed, dPressed, qPressed, ePressed;
 void keyPressed(){
   if (keyCode == LEFT) leftPressed = true;
   if (keyCode == RIGHT) rightPressed = true;
   if (keyCode == UP) upPressed = true;
   if (keyCode == DOWN) downPressed = true;
   if (keyCode == CONTROL) ctrlPressed = true;
+  if (key == 'w' || key == 'W') wPressed = true;
+  if (key == 'a' || key == 'A') aPressed = true;
+  if (key == 's' || key == 'S') sPressed = true;
+  if (key == 'd' || key == 'D') dPressed = true;
+  if (key == 'q' || key == 'Q') qPressed = true;
+  if (key == 'e' || key == 'E') ePressed = true;
  }
  
 void keyReleased(){
@@ -160,6 +190,12 @@ void keyReleased(){
   if (keyCode == UP) upPressed = false;
   if (keyCode == DOWN) downPressed = false;
   if (keyCode == CONTROL) ctrlPressed = false;
+  if (key == 'w' || key == 'W') wPressed = false;
+  if (key == 'a' || key == 'A') aPressed = false;
+  if (key == 's' || key == 'S') sPressed = false;
+  if (key == 'd' || key == 'D') dPressed = false;
+  if (key == 'q' || key == 'Q') qPressed = false;
+  if (key == 'e' || key == 'E') ePressed = false;
 }
 
 void mouseWheel(MouseEvent event){
