@@ -47,6 +47,8 @@ void draw(){
   camera(cameraPos.x,cameraPos.y, cameraPos.z,
   cameraPos.x+cameraDir.x, cameraPos.y+cameraDir.y, cameraPos.z+cameraDir.z,
   0.0,1.0,0.0);
+  directionalLight(180, 180, 180, -1, 1, -1);
+  ambientLight(150,150,150);
   
   for (int i = 0; i < xh-1; i++)
     for (int j = 0; j < yh-1; j++){
@@ -63,9 +65,6 @@ void draw(){
   pushMatrix();
   fill(#A0D6E5);
   specular(120, 120, 180);
-  ambientLight(90,90,90);
-  //lightSpecular(255,255,255); shininess(20);
-  directionalLight(200, 200, 200, -1, 1, -1);
   translate(spherePos.x, spherePos.y, spherePos.z);
   sphere(sphereRadius);
   popMatrix();
@@ -75,7 +74,7 @@ void draw(){
 float kd = 20, ks = 300;
 float vertL0 = (downleft.x - upleft.x)/(xh-1), g = 20;
 float horiL0 = upright.distanceTo(upleft) / (yh-1);
-float kd_t = 0.5, ks_t = 10.0;
+float kd_t = 5.0, ks_t = 5.0;
 void update(float dt){
   // update forces
   for (int j = 0; j < yh; j++){
