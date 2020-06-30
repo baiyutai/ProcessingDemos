@@ -123,21 +123,35 @@ void update(float dt){
 
 // control camera according to keyboard and mouse inputs
 void cameraUpdate(float step){
-  if (upPressed) phi += step;
-  if (downPressed) phi -= step;
-  if (leftPressed) theta -= step;
-  if (rightPressed) theta += step;
-  cameraDir.x = cos(theta)*sin(phi);
-  cameraDir.y = cos(phi);
-  cameraDir.z = sin(theta)*sin(phi);
+  if (ctrlPressed){
+    Vec3 up = new Vec3(0.0,-1.0,0.0);
+    up.subtract(cameraDir.times(cameraDir.y));
+    up.normalize();
+    if (upPressed) cameraPos.add(up.times(step*20));
+    if (downPressed) cameraPos.subtract(up.times(step*20));
+    Vec3 left = cross(cameraDir, up);
+    if (leftPressed) cameraPos.add(left.times(step*20));
+    if (rightPressed) cameraPos.subtract(left.times(step*20));
+  }
+  else{
+    if (upPressed) phi += step;
+    if (downPressed) phi -= step;
+    if (leftPressed) theta -= step;
+    if (rightPressed) theta += step;
+    cameraDir.x = cos(theta)*sin(phi);
+    cameraDir.y = cos(phi);
+    cameraDir.z = sin(theta)*sin(phi);
+  }
 }
 
 boolean leftPressed, rightPressed, upPressed, downPressed;
+boolean ctrlPressed;
 void keyPressed(){
   if (keyCode == LEFT) leftPressed = true;
   if (keyCode == RIGHT) rightPressed = true;
   if (keyCode == UP) upPressed = true;
   if (keyCode == DOWN) downPressed = true;
+  if (keyCode == CONTROL) ctrlPressed = true;
  }
  
 void keyReleased(){
@@ -145,6 +159,7 @@ void keyReleased(){
   if (keyCode == RIGHT) rightPressed = false;
   if (keyCode == UP) upPressed = false;
   if (keyCode == DOWN) downPressed = false;
+  if (keyCode == CONTROL) ctrlPressed = false;
 }
 
 void mouseWheel(MouseEvent event){
