@@ -10,10 +10,18 @@ PImage texture;
 float textW = 226, textH = 300;
 float dtextW = textW / (yh-1), dtextH = textH / (xh-1);
 
+// camera parameters
+Vec3 cameraPos, cameraDir;
+float theta, phi;
 void setup(){
   size(800, 600, P3D);
   background(255);
   texture = loadImage("texture.jpg");
+  
+  // camera initialization
+  cameraPos = new Vec3(400, 300, 600);
+  theta = -PI/2; phi = PI/2;
+  cameraDir = new Vec3(cos(theta)*sin(phi),cos(phi),sin(theta)*sin(phi));
   
   // initialize cloth parameters
   Vec3 zero = new Vec3(0,0,0);
@@ -35,26 +43,19 @@ Vec3 spherePos = new Vec3(400, 400, 0);
 void draw(){
   update(1/frameRate);
   background(255);
+  cameraUpdate(0.05);
+  camera(cameraPos.x,cameraPos.y, cameraPos.z,
+  cameraPos.x+cameraDir.x, cameraPos.y+cameraDir.y, cameraPos.z+cameraDir.z,
+  0.0,1.0,0.0);
   
-  // draw shapes
-  //for (int i = 0; i < xh-1; i++)
-  //  for (int j = 0; j < yh-1; j++){
-  //    beginShape();
-  //    texture(texture);
-  //    vertex(pos[i*yh+j].x, pos[i*yh+j].y, pos[i*yh+j].z, j*dtextW, i*dtextH);
-  //    vertex(pos[i*yh+j+1].x, pos[i*yh+j+1].y, pos[i*yh+j+1].z, (j+1)*dtextW, i*dtextH);
-  //    vertex(pos[(i+1)*yh+j+1].x, pos[(i+1)*yh+j+1].y, pos[(i+1)*yh+j+1].z, (j+1)*dtextW, (i+1)*dtextH);
-  //    vertex(pos[(i+1)*yh+j].x, pos[(i+1)*yh+j].y, pos[(i+1)*yh+j].z, j*dtextW, (i+1)*dtextH);
-  //    endShape(CLOSE);
-  //  }
-  for (int i = 0; i < xh-2; i++)
-    for (int j = 0; j < yh-2; j++){
+  for (int i = 0; i < xh-1; i++)
+    for (int j = 0; j < yh-1; j++){
       beginShape();
       texture(texture);
       vertex(pos[i*yh+j].x, pos[i*yh+j].y, pos[i*yh+j].z, j*dtextW, i*dtextH);
-      vertex(pos[i*yh+j+2].x, pos[i*yh+j+2].y, pos[i*yh+j+2].z, (j+2)*dtextW, i*dtextH);
-      vertex(pos[(i+2)*yh+j+2].x, pos[(i+2)*yh+j+2].y, pos[(i+2)*yh+j+2].z, (j+2)*dtextW, (i+2)*dtextH);
-      vertex(pos[(i+2)*yh+j].x, pos[(i+2)*yh+j].y, pos[(i+2)*yh+j].z, j*dtextW, (i+2)*dtextH);
+      vertex(pos[i*yh+j+1].x, pos[i*yh+j+1].y, pos[i*yh+j+1].z, (j+1)*dtextW, i*dtextH);
+      vertex(pos[(i+1)*yh+j+1].x, pos[(i+1)*yh+j+1].y, pos[(i+1)*yh+j+1].z, (j+1)*dtextW, (i+1)*dtextH);
+      vertex(pos[(i+1)*yh+j].x, pos[(i+1)*yh+j].y, pos[(i+1)*yh+j].z, j*dtextW, (i+1)*dtextH);
       endShape(CLOSE);
     }
   
@@ -119,4 +120,34 @@ void update(float dt){
       }
     }
   }
+}
+
+// control camera according to keyboard and mouse inputs
+void cameraUpdate(float step){
+  if (upPressed) phi += step;
+  if (downPressed) phi -= step;
+  if (leftPressed) theta -= step;
+  if (rightPressed) theta += step;
+  cameraDir.x = cos(theta)*sin(phi);
+  cameraDir.y = cos(phi);
+  cameraDir.z = sin(theta)*sin(phi);
+}
+
+boolean leftPressed, rightPressed, upPressed, downPressed;
+void keyPressed(){
+  if (keyCode == LEFT) leftPressed = true;
+  if (keyCode == RIGHT) rightPressed = true;
+  if (keyCode == UP) upPressed = true;
+  if (keyCode == DOWN) downPressed = true;
+ }
+ 
+void keyReleased(){
+  if (keyCode == LEFT) leftPressed = false;
+  if (keyCode == RIGHT) rightPressed = false;
+  if (keyCode == UP) upPressed = false;
+  if (keyCode == DOWN) downPressed = false;
+}
+
+void mouseWheel(MouseEvent event){
+  cameraPos.add(cameraDir.times(-10*event.getCount()));
 }
