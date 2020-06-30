@@ -1,12 +1,14 @@
 // initialize box parameters
 float widthBox = 300, depthBox = 300, heightBox = 250;
 Vec3 posBox = new Vec3(400, 325, 0);
-Vec3 oposBox = new Vec3(posBox.x-widthBox/2, posBox.y+heightBox/2, posBox.z-depthBox/2);
 
 // initialize fluid parameters
 int xnum = 51, znum = 51;
 float[] h = new float[xnum * znum];
-float dx = widthBox / xnum, dz = depthBox/znum;
+float dx = widthBox / (xnum-1), dz = depthBox/(znum-1);
+float[] posx = new float[xnum];
+float bottomY = posBox.y + heightBox/2;
+float[] posz = new float[znum];
 
 // camera parameters
 Vec3 cameraPos, cameraDir;
@@ -23,7 +25,14 @@ void setup(){
   // water initialization
   for (int i = 0; i < xnum; i++)
     for (int k = 0; k < znum; k++)
-      h[i*znum + k] = (1-float(i+k)/(xnum+znum))*heightBox;
+      h[k*xnum + i] = (1-float(i+k)/(xnum+znum))*heightBox;
+  // positions initialization
+  posx[0] = posBox.x-widthBox/2;
+  for (int i = 1; i < xnum; i++)
+    posx[i] = posx[i-1] + dx;
+  posz[0] = posBox.z-depthBox/2;
+  for (int k = 1; k < znum; k++)
+    posz[k] = posz[k-1] + dz;
 }
 
 void draw(){
@@ -36,6 +45,7 @@ void draw(){
   0.0,1.0,0.0);
   lightSpecular(255,255,255); shininess(20);
   pointLight(250, 250, 250, 550, 100, 36);
+  ambientLight(100, 100, 100);
   
   // render water
   noStroke();
@@ -43,28 +53,49 @@ void draw(){
   for (int i = 0; i < xnum-1; i++)
     for (int k = 0; k < znum-1; k++){
       beginShape();
-      vertex(i*dx+oposBox.x, oposBox.y-h[i*znum+k], k*dz+oposBox.z);
-      vertex(i*dx+oposBox.x, oposBox.y-h[i*znum+k+1], (k+1)*dz+oposBox.z);
-      vertex((i+1)*dx+oposBox.x, oposBox.y-h[(i+1)*znum+k+1], (k+1)*dz+oposBox.z);
-      vertex((i+1)*dx+oposBox.x, oposBox.y-h[(i+1)*znum+k], k*dz+oposBox.z);
+      vertex(posx[i], bottomY-h[k*xnum+i], posz[k]);
+      vertex(posx[i], bottomY-h[(k+1)*xnum+i], posz[k+1]);
+      vertex(posx[i+1], bottomY-h[(k+1)*xnum+i+1], posz[k+1]);
+      vertex(posx[i+1], bottomY-h[k*xnum+i+1], posz[k]);
       endShape(CLOSE);
     }
     
   // render bottom
   beginShape();
-  vertex(oposBox.x, oposBox.y, oposBox.z);
-  vertex(oposBox.x+widthBox, oposBox.y, oposBox.z);
-  vertex(oposBox.x+widthBox, oposBox.y, oposBox.z+depthBox);
-  vertex(oposBox.x, oposBox.y, oposBox.z+depthBox);
+  vertex(posx[0], bottomY, posz[0]);
+  vertex(posx[xnum-1], bottomY, posz[0]);
+  vertex(posx[xnum-1], bottomY, posz[znum-1]);
+  vertex(posx[0], bottomY, posz[znum-1]);
   endShape(CLOSE);
   
   // render surrounding surfaces
-  // opposite surface
+  // further opposite
   beginShape();
-  vertex(oposBox.x+widthBox, oposBox.y, oposBox.z);
-  vertex(oposBox.x, oposBox.y, oposBox.z);
+  vertex(posx[xnum-1], bottomY, posz[0]);
+  vertex(posx[0], bottomY, posz[0]);
   for (int i = 0; i < xnum; i++)
-    vertex(oposBox.x+i*dx, oposBox.y-h[i*znum], oposBox.z);
+    vertex(posx[i], bottomY-h[i], posz[0]);
+  endShape(CLOSE);
+  // left side
+  beginShape();
+  vertex(posx[0], bottomY, posz[znum-1]);
+  vertex(posx[0], bottomY, posz[0]);
+  for (int k = 0; k < znum; k++)
+    vertex(posx[0], bottomY-h[k*xnum], posz[k]);
+  endShape(CLOSE);
+  // right side
+  beginShape();
+  vertex(posx[xnum-1], bottomY, posz[znum-1]);
+  vertex(posx[xnum-1], bottomY, posz[0]);
+  for (int k = 0; k < znum; k++)
+    vertex(posx[xnum-1], bottomY-h[k*xnum+xnum-1], posz[k]);
+  endShape(CLOSE);
+  // closer opposite
+  beginShape();
+  vertex(posx[xnum-1], bottomY, posz[znum-1]);
+  vertex(posx[0], bottomY, posz[znum-1]);
+  for (int i = 0; i < xnum; i++)
+    vertex(posx[i], bottomY-h[(znum-1)*xnum+i], posz[znum-1]);
   endShape(CLOSE);
   
   // render box
