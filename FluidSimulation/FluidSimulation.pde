@@ -4,7 +4,10 @@ Vec3 posBox = new Vec3(400, 325, 0);
 
 // initialize fluid parameters
 int xnum = 51, znum = 51;
-float[] h = new float[xnum * znum];
+float[][] h = new float[xnum][znum];
+float[][] hu = new float[xnum][znum];
+float[][] hv = new float[xnum][znum];
+
 float dx = widthBox / (xnum-1), dz = depthBox/(znum-1);
 float[] posx = new float[xnum];
 float bottomY = posBox.y + heightBox/2;
@@ -24,8 +27,12 @@ void setup(){
   
   // water initialization
   for (int i = 0; i < xnum; i++)
-    for (int k = 0; k < znum; k++)
-      h[k*xnum + i] = (1-float(i+k)/(xnum+znum))*heightBox;
+    for (int k = 0; k < znum; k++){
+      h[i][k] = (1-float(i+k)/(xnum+znum))*heightBox;
+      hu[i][k] = 0;
+      hv[i][k] = 0;
+    }
+
   // positions initialization
   posx[0] = posBox.x-widthBox/2;
   for (int i = 1; i < xnum; i++)
@@ -36,10 +43,11 @@ void setup(){
 }
 
 void draw(){
-  // camera & background settings
-  update(1/frameRate);
-  background(0);
   cameraUpdate(0.05);
+  update(1.0/100);
+  
+  // camera & background settings
+  background(0);
   camera(cameraPos.x,cameraPos.y, cameraPos.z,
   cameraPos.x+cameraDir.x, cameraPos.y+cameraDir.y, cameraPos.z+cameraDir.z,
   0.0,1.0,0.0);
@@ -53,10 +61,10 @@ void draw(){
   for (int i = 0; i < xnum-1; i++)
     for (int k = 0; k < znum-1; k++){
       beginShape();
-      vertex(posx[i], bottomY-h[k*xnum+i], posz[k]);
-      vertex(posx[i], bottomY-h[(k+1)*xnum+i], posz[k+1]);
-      vertex(posx[i+1], bottomY-h[(k+1)*xnum+i+1], posz[k+1]);
-      vertex(posx[i+1], bottomY-h[k*xnum+i+1], posz[k]);
+      vertex(posx[i], bottomY-h[i][k], posz[k]);
+      vertex(posx[i], bottomY-h[i][k+1], posz[k+1]);
+      vertex(posx[i+1], bottomY-h[i+1][k+1], posz[k+1]);
+      vertex(posx[i+1], bottomY-h[i+1][k], posz[k]);
       endShape(CLOSE);
     }
     
@@ -74,28 +82,28 @@ void draw(){
   vertex(posx[xnum-1], bottomY, posz[0]);
   vertex(posx[0], bottomY, posz[0]);
   for (int i = 0; i < xnum; i++)
-    vertex(posx[i], bottomY-h[i], posz[0]);
+    vertex(posx[i], bottomY-h[i][0], posz[0]);
   endShape(CLOSE);
   // left side
   beginShape();
   vertex(posx[0], bottomY, posz[znum-1]);
   vertex(posx[0], bottomY, posz[0]);
   for (int k = 0; k < znum; k++)
-    vertex(posx[0], bottomY-h[k*xnum], posz[k]);
+    vertex(posx[0], bottomY-h[0][k], posz[k]);
   endShape(CLOSE);
   // right side
   beginShape();
   vertex(posx[xnum-1], bottomY, posz[znum-1]);
   vertex(posx[xnum-1], bottomY, posz[0]);
   for (int k = 0; k < znum; k++)
-    vertex(posx[xnum-1], bottomY-h[k*xnum+xnum-1], posz[k]);
+    vertex(posx[xnum-1], bottomY-h[xnum-1][k], posz[k]);
   endShape(CLOSE);
   // closer opposite
   beginShape();
   vertex(posx[xnum-1], bottomY, posz[znum-1]);
   vertex(posx[0], bottomY, posz[znum-1]);
   for (int i = 0; i < xnum; i++)
-    vertex(posx[i], bottomY-h[(znum-1)*xnum+i], posz[znum-1]);
+    vertex(posx[i], bottomY-h[i][znum-1], posz[znum-1]);
   endShape(CLOSE);
   
   // render box
@@ -107,7 +115,71 @@ void draw(){
   popMatrix();
 }
 
+float[][] h_mid_x = new float[xnum-1][znum];
+float[][] hu_mid_x = new float[xnum-1][znum];
+float[][] hv_mid_x = new float[xnum-1][znum];
+
+float[][] h_mid_z = new float[xnum][znum-1];
+float[][] hu_mid_z = new float[xnum][znum-1];
+float[][] hv_mid_z = new float[xnum][znum-1];
+
+float g = 9.8;
 void update(float dt){
+  // compute original midpoints value
+  // in x direction
+  for (int z = 0; z<znum; z++)
+    for (int x=0; x<xnum-1; x++){
+      h_mid_x[x][z] = (h[x][z+1]+h[x+1][z+1])/2.0;
+      hu_mid_x[x][z] = (hu[x][z+1]+hu[x+1][z+1])/2.0;
+      hv_mid_x[x][z] = (hv[x][z+1]+hv[x+1][z+1])/2.0;
+    }
+  // in z direction
+  for (int x=0; x<xnum; x++)
+    for (int z=0; z<znum-1; z++){
+      h_mid_z[x][z] = (h[x+1][z]+h[x+1][z+1])/2.0;
+      hu_mid_z[x][z] = (hu[x+1][z]+hu[x+1][z+1])/2.0;
+      hv_mid_z[x][z] = (hv[x+1][z]+hv[x+1][z+1])/2.0;
+    }
+
+  // update USED midpoints (Eulerian)
+  // created in x direction
+  for (int z=1; z<znum-1; z++)
+    for (int x=0; x<xnum-1; x++){
+    // update h
+    float dhudx = (hu[x+1][z]-hu[x][z])/dx;
+    float dhvdz = (hu_mid_x[x][z+1]-hu_mid_x[x][z-1])/(2.0*dz);
+    h_mid_x[x][z] += -(dhudx+dhvdz)*dt/2.0;
+    
+    // update hu
+    float dhu2dx = (sq(hu[x+1][z])/h[x+1][z]-sq(hu[x][z])/h[x][z])/dx;
+    float dgh2dx = g*(sq(h[x+1][z])-sq(h[x][z]))/dx;
+    float dhuvdz = (hu_mid_x[x][z+1]*hv_mid_x[x][z+1]/h_mid_x[x][z+1]
+                  - hu_mid_x[x][z-1]*hv_mid_x[x][z-1]/h_mid_x[x][z-1])/(2.0*dz);
+    hu_mid_x[x][z] += (-dhu2dx-0.5*dgh2dx+dhuvdz)*dt/2.0;
+    
+    // update hv
+    float dhuvdx = (hu[x+1][z]*hv[x+1][z]/h[x+1][z] - hu[x][z]*hv[x][z]/h[x][z])/dx;
+    float dhv2dz = (sq(hu_mid_x[x][z+1])/h_mid_x[x][z+1]
+                   -sq(hu_mid_x[x][z-1])/h_mid_x[x][z+1])/(2.0*dz);
+    float dgh2dz = (sq(h_mid_x[x][z+1])-sq(h_mid_x[x][z-1]))*g/(2.0*dz);
+    hv_mid_x[x][z] += (-dhuvdx-dhv2dz-0.5*dgh2dz)*dt/2.0;
+    }
+  // created in z direction
+  for (int x=1; x<xnum-1; x++)
+    for (int z=0; z<znum-1; z++){
+    // update h
+    float dhudx = (hu_mid_z[x+1][z]-hu_mid_z[x-1][z])/(dx*2.0);
+    float dhvdz = (hu[x][z+1]-hu[x][z])/dz;
+    h_mid_z[x][z] += (-dhudx-dhvdz)*dt/2.0;
+    
+    // update hu
+    float dhu2dx = (sq(hu_mid_z[x+1][z])/h_mid_z[x+1][z]
+                   -sq(hu_mid_z[x-1][z])/h_mid_z[x-1][z])/(2.0*dx);
+    
+    
+    // update hv
+    }
+    
 }
 
 // control camera according to keyboard and mouse inputs
