@@ -3,7 +3,7 @@ float widthBox = 300, depthBox = 300, heightBox = 250;
 Vec3 posBox = new Vec3(400, 325, 0);
 
 // initialize fluid parameters
-int xnum = 51, znum = 51;
+int xnum = 31, znum = 31;
 float[][] h = new float[xnum][znum];
 float[][] hu = new float[xnum][znum];
 float[][] hv = new float[xnum][znum];
@@ -28,7 +28,7 @@ void setup(){
   // water initialization
   for (int i = 0; i < xnum; i++)
     for (int k = 0; k < znum; k++){
-      h[i][k] = (1-float(i+k)/(xnum+znum))*heightBox;
+      h[i][k] = (1-float(i+k)/(xnum+znum))*heightBox/5.0;
       hu[i][k] = 0;
       hv[i][k] = 0;
     }
@@ -44,8 +44,9 @@ void setup(){
 
 void draw(){
   cameraUpdate(0.05);
-  update(1.0/100);
   
+  for (int t = 0; t < 100; t++)
+    update(1.0/1000);
   // camera & background settings
   background(0);
   camera(cameraPos.x,cameraPos.y, cameraPos.z,
@@ -119,26 +120,34 @@ float[][] h_mid_x = new float[xnum-1][znum];
 float[][] hu_mid_x = new float[xnum-1][znum];
 float[][] hv_mid_x = new float[xnum-1][znum];
 
+float[][] hMidDelta_x = new float[xnum-1][znum];
+float[][] huMidDelta_x = new float[xnum-1][znum];
+float[][] hvMidDelta_x = new float[xnum-1][znum];
+
 float[][] h_mid_z = new float[xnum][znum-1];
 float[][] hu_mid_z = new float[xnum][znum-1];
 float[][] hv_mid_z = new float[xnum][znum-1];
 
-float g = 9.8;
+float[][] hMidDelta_z = new float[xnum][znum-1];
+float[][] huMidDelta_z = new float[xnum][znum-1];
+float[][] hvMidDelta_z = new float[xnum][znum-1];
+
+float g = 0.5;
 void update(float dt){
   // compute original midpoints value
   // in x direction
   for (int z = 0; z<znum; z++)
     for (int x=0; x<xnum-1; x++){
-      h_mid_x[x][z] = (h[x][z+1]+h[x+1][z+1])/2.0;
-      hu_mid_x[x][z] = (hu[x][z+1]+hu[x+1][z+1])/2.0;
-      hv_mid_x[x][z] = (hv[x][z+1]+hv[x+1][z+1])/2.0;
+      h_mid_x[x][z] = (h[x][z]+h[x+1][z])/2.0;
+      hu_mid_x[x][z] = (hu[x][z]+hu[x+1][z])/2.0;
+      hv_mid_x[x][z] = (hv[x][z]+hv[x+1][z])/2.0;
     }
   // in z direction
   for (int x=0; x<xnum; x++)
     for (int z=0; z<znum-1; z++){
-      h_mid_z[x][z] = (h[x+1][z]+h[x+1][z+1])/2.0;
-      hu_mid_z[x][z] = (hu[x+1][z]+hu[x+1][z+1])/2.0;
-      hv_mid_z[x][z] = (hv[x+1][z]+hv[x+1][z+1])/2.0;
+      h_mid_z[x][z] = (h[x][z]+h[x][z+1])/2.0;
+      hu_mid_z[x][z] = (hu[x][z]+hu[x][z+1])/2.0;
+      hv_mid_z[x][z] = (hv[x][z]+hv[x][z+1])/2.0;
     }
 
   // update USED midpoints (Eulerian)
@@ -147,39 +156,125 @@ void update(float dt){
     for (int x=0; x<xnum-1; x++){
     // update h
     float dhudx = (hu[x+1][z]-hu[x][z])/dx;
-    float dhvdz = (hu_mid_x[x][z+1]-hu_mid_x[x][z-1])/(2.0*dz);
-    h_mid_x[x][z] += -(dhudx+dhvdz)*dt/2.0;
+    float dhvdz = (hv_mid_x[x][z+1]-hv_mid_x[x][z-1])/(2.0*dz);
+    hMidDelta_x[x][z] = -(dhudx+dhvdz)*dt/2.0;
     
     // update hu
     float dhu2dx = (sq(hu[x+1][z])/h[x+1][z]-sq(hu[x][z])/h[x][z])/dx;
-    float dgh2dx = g*(sq(h[x+1][z])-sq(h[x][z]))/dx;
+    float dgh2dx = (sq(h[x+1][z])-sq(h[x][z]))*g/dx;
     float dhuvdz = (hu_mid_x[x][z+1]*hv_mid_x[x][z+1]/h_mid_x[x][z+1]
                   - hu_mid_x[x][z-1]*hv_mid_x[x][z-1]/h_mid_x[x][z-1])/(2.0*dz);
-    hu_mid_x[x][z] += (-dhu2dx-0.5*dgh2dx+dhuvdz)*dt/2.0;
+    huMidDelta_x[x][z] = (-dhu2dx-0.5*dgh2dx-dhuvdz)*dt/2.0;
     
     // update hv
     float dhuvdx = (hu[x+1][z]*hv[x+1][z]/h[x+1][z] - hu[x][z]*hv[x][z]/h[x][z])/dx;
-    float dhv2dz = (sq(hu_mid_x[x][z+1])/h_mid_x[x][z+1]
-                   -sq(hu_mid_x[x][z-1])/h_mid_x[x][z+1])/(2.0*dz);
+    float dhv2dz = (sq(hv_mid_x[x][z+1])/h_mid_x[x][z+1]
+                   -sq(hv_mid_x[x][z-1])/h_mid_x[x][z-1])/(2.0*dz);
     float dgh2dz = (sq(h_mid_x[x][z+1])-sq(h_mid_x[x][z-1]))*g/(2.0*dz);
-    hv_mid_x[x][z] += (-dhuvdx-dhv2dz-0.5*dgh2dz)*dt/2.0;
+    hvMidDelta_x[x][z] = (-dhuvdx-dhv2dz-0.5*dgh2dz)*dt/2.0;
     }
   // created in z direction
   for (int x=1; x<xnum-1; x++)
     for (int z=0; z<znum-1; z++){
     // update h
     float dhudx = (hu_mid_z[x+1][z]-hu_mid_z[x-1][z])/(dx*2.0);
-    float dhvdz = (hu[x][z+1]-hu[x][z])/dz;
-    h_mid_z[x][z] += (-dhudx-dhvdz)*dt/2.0;
+    float dhvdz = (hv[x][z+1]-hv[x][z])/dz;
+    hMidDelta_z[x][z] = (-dhudx-dhvdz)*dt/2.0;
     
     // update hu
     float dhu2dx = (sq(hu_mid_z[x+1][z])/h_mid_z[x+1][z]
                    -sq(hu_mid_z[x-1][z])/h_mid_z[x-1][z])/(2.0*dx);
-    
+    float dgh2dx = (sq(h_mid_z[x+1][z])-sq(h_mid_z[x-1][z]))*g/(2.0*dx);
+    float dhuvdz = (hu[x][z+1]*hv[x][z+1]/h[x][z+1]
+                   -hu[x][z]*hv[x][z]/h[x][z])/dz;
+    huMidDelta_z[x][z] = (-dhu2dx-0.5*dgh2dx-dhuvdz)*dt/2.0;
     
     // update hv
+    float dhuvdx = (hu_mid_z[x+1][z]*hv_mid_z[x+1][z]/h_mid_z[x+1][z]
+                   -hu_mid_z[x-1][z]*hv_mid_z[x-1][z]/h_mid_z[x-1][z])/(2.0*dx);
+    float dhv2dz = (sq(hv[x][z+1])/h[x][z+1]-sq(hv[x][z])/h[x][z])/dz;
+    float dgh2dz = (sq(h[x][z+1])-sq(h[x][z]))*g/dz;
+    hvMidDelta_z[x][z] = (-dhuvdx-dhv2dz-0.5*dgh2dz)*dt/2.0;
+    }
+  // update in both directions
+  for (int x=0; x<xnum-1; x++)
+    for (int z=0; z<znum; z++){
+      h_mid_x[x][z] += hMidDelta_x[x][z];
+      hu_mid_x[x][z] += huMidDelta_x[x][z];
+      hv_mid_x[x][z] += hvMidDelta_x[x][z];
+    }
+  for (int x=0; x<xnum; x++)
+    for (int z=0; z<znum-1; z++){
+      h_mid_z[x][z] += hMidDelta_z[x][z];
+      hu_mid_z[x][z] += huMidDelta_z[x][z];
+      hv_mid_z[x][z] += hvMidDelta_z[x][z];
     }
     
+  // update h and hu for original points
+  for (int x=1; x<xnum-1; x++)
+    for (int z=1; z<znum-1; z++){
+    // update h
+    float dhudx = (hu_mid_x[x][z]-hu_mid_x[x-1][z])/dx;
+    float dhvdz = (hv_mid_z[x][z]-hv_mid_z[x][z-1])/dz;
+    h[x][z] += (-dhudx-dhvdz)*dt;
+    
+    // update hu
+    float dhu2dx = (sq(hu_mid_x[x][z])/h_mid_x[x][z]
+                   -sq(hu_mid_x[x-1][z])/h_mid_x[x-1][z])/dx;
+    float dgh2dx = (sq(h_mid_x[x][z])-sq(h_mid_x[x-1][z]))*g/dx;
+    float dhuvdz = (hu_mid_z[x][z]*hv_mid_z[x][z]/h_mid_z[x][z]
+                   -hu_mid_z[x][z-1]*hv_mid_z[x][z-1]/h_mid_z[x][z-1])/dz;
+    hu[x][z] += (-dhu2dx-0.5*dgh2dx-dhuvdz)*dt;
+    
+    // update hv
+    float dhuvdx = (hu_mid_x[x][z]*hv_mid_x[x][z]/h_mid_x[x][z]
+                   -hu_mid_x[x-1][z]*hv_mid_x[x-1][z]/h_mid_x[x-1][z])/dx;
+    float dhv2dz = (sq(hv_mid_z[x][z])/h_mid_z[x][z]
+                   -sq(hv_mid_z[x][z-1])/h_mid_z[x][z-1])/dz;
+    float dgh2dz = (sq(h_mid_z[x][z])-sq(h_mid_z[x][z-1]))*g/dz;
+    hv[x][z] += (-dhuvdx-dhv2dz-0.5*dgh2dz)*dt;
+    }
+    
+  // boundary conditions
+  // edges
+  for (int x=1; x<xnum-1; x++){
+    h[x][0] = h[x][1]; hu[x][0] = hu[x][1];
+    hv[x][0] = -hv[x][0];
+    
+    h[x][znum-1] = h[x][znum-2]; hu[x][znum-1] = hu[x][znum-2];
+    hv[x][znum-1] = -hv[x][znum-2];
+  }
+  for (int z=1; z<znum-1; z++){
+    h[0][z] = h[1][z];
+    hu[0][z] = -hu[1][z];
+    hv[0][z] = hv[1][z];
+    
+    h[xnum-1][z] = h[xnum-2][z];
+    hu[xnum-1][z] = -hu[xnum-2][z];
+    hv[xnum-1][z] = hv[xnum-2][z];
+  }
+  
+  // corners
+  
+  h[0][0] = (h[1][0]+h[0][1])/2;
+  hu[0][0] = hu[1][0];
+  hv[0][0] = hv[0][1];
+  
+  h[xnum-1][0] = (h[xnum-2][0]+hv[xnum-1][1])/2;
+  hu[xnum-1][0] = hu[xnum-2][0];
+  hv[xnum-1][0] = hv[xnum-1][1];
+  
+  h[0][znum-1] = (h[1][znum-1]+h[0][znum-2])/2;
+  hu[0][znum-1] = hu[1][znum-1];
+  hv[0][znum-1] = hv[0][znum-2];
+  //hu[0][znum-1] = -hu[1][znum-2]/sqrt(2);
+  //hv[0][znum-1] = -hv[1][znum-2]/sqrt(2);
+  
+  h[xnum-1][znum-1] = (h[xnum-2][znum-1]+hv[xnum-1][znum-2])/2;
+  hu[xnum-1][znum-1] = h[xnum-2][znum-1];
+  hv[xnum-1][znum-1] = hv[xnum-1][znum-2];
+  //hu[xnum-1][znum-1] = -hu[xnum-2][znum-2]/sqrt(2);
+  //hv[xnum-1][znum-1] = -hv[xnum-2][znum-2]/sqrt(2);
 }
 
 // control camera according to keyboard and mouse inputs
