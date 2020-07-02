@@ -1,12 +1,13 @@
 // initialize box parameters
-float widthBox = 300, depthBox = 300, heightBox = 250;
+float widthBox = 200, depthBox = 200, heightBox = 250;
 Vec3 posBox = new Vec3(400, 325, 0);
 
 // initialize fluid parameters
-int xnum = 31, znum = 31;
+int xnum = 51, znum = 51;
 float[][] h = new float[xnum][znum];
 float[][] hu = new float[xnum][znum];
 float[][] hv = new float[xnum][znum];
+float hmax=heightBox, speedMax = 50.0;
 
 float dx = widthBox / (xnum-1), dz = depthBox/(znum-1);
 float[] posx = new float[xnum];
@@ -255,26 +256,34 @@ void update(float dt){
   }
   
   // corners
+  h[0][0] = h[1][1];
+  hu[0][0] = -hu[1][1];
+  hv[0][0] = -hv[1][1];
   
-  h[0][0] = (h[1][0]+h[0][1])/2;
-  hu[0][0] = hu[1][0];
-  hv[0][0] = hv[0][1];
+  h[xnum-1][0] = h[xnum-2][1];
+  hu[xnum-1][0] = -hu[xnum-2][1];
+  hv[xnum-1][0] = -hv[xnum-2][1];
   
-  h[xnum-1][0] = (h[xnum-2][0]+hv[xnum-1][1])/2;
-  hu[xnum-1][0] = hu[xnum-2][0];
-  hv[xnum-1][0] = hv[xnum-1][1];
+  h[0][znum-1] = h[1][znum-2];
+  hu[0][znum-1] = -hu[1][znum-2];
+  hv[0][znum-1] = -hv[1][znum-2];
   
-  h[0][znum-1] = (h[1][znum-1]+h[0][znum-2])/2;
-  hu[0][znum-1] = hu[1][znum-1];
-  hv[0][znum-1] = hv[0][znum-2];
-  //hu[0][znum-1] = -hu[1][znum-2]/sqrt(2);
-  //hv[0][znum-1] = -hv[1][znum-2]/sqrt(2);
+  h[xnum-1][znum-1] = h[xnum-2][znum-2];
+  hu[xnum-1][znum-1] = -hu[xnum-2][znum-2];
+  hv[xnum-1][znum-1] = -hv[xnum-2][znum-2];
   
-  h[xnum-1][znum-1] = (h[xnum-2][znum-1]+hv[xnum-1][znum-2])/2;
-  hu[xnum-1][znum-1] = h[xnum-2][znum-1];
-  hv[xnum-1][znum-1] = hv[xnum-1][znum-2];
-  //hu[xnum-1][znum-1] = -hu[xnum-2][znum-2]/sqrt(2);
-  //hv[xnum-1][znum-1] = -hv[xnum-2][znum-2]/sqrt(2);
+  // check if no water at the block
+  for (int x=0; x<xnum; x++)
+    for (int z=0; z<znum;z++) {
+      if (h[x][z]<=0.01){
+        h[x][z] = 0.01;
+        hu[x][z] = 0;
+        hv[x][z] = 0;
+      }
+      if (hu[x][z] > speedMax) hu[x][z]=speedMax;
+      if (hv[x][z] > speedMax) hv[x][z]=speedMax;
+    }
+      
 }
 
 // control camera according to keyboard and mouse inputs
