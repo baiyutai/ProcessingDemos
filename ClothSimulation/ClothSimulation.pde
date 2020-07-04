@@ -38,14 +38,14 @@ void setup(){
 
 // obstacle parameters
 int sphereRadius = 100;
-Vec3 spherePos = new Vec3(400, 350, 0);
+Vec3 spherePos = new Vec3(400, 400, 0);
 
 void draw(){
   println(frameRate);
   cameraUpdate(0.05);
   obstacleUpdate(5.0);
-  for (int t = 0; t < frameRate*3; t++)
-    update(1.0/500);
+  for (int t = 0; t < 30; t++)
+    update(1.0/300);
   
   background(255);
   camera(cameraPos.x,cameraPos.y, cameraPos.z,
@@ -79,7 +79,6 @@ float kd = 50, ks = 200;
 float vertL0 = downleft.distanceTo(upleft)/(xh-1), g = 5.0;
 float horiL0 = upright.distanceTo(upleft) / (yh-1);
 float kd_t = 40, ks_t = 200;
-float k_aero = 0.001;
 void update(float dt){
   // update forces
   for (int i = 0; i < xh; i++)
@@ -110,52 +109,6 @@ void update(float dt){
       acc[i*yh+j].add(e.times(fs+fd));
       acc[i*yh+j+1].subtract(e.times(fs+fd));
     }
-  // air drag forces
-  for (int i = 0; i < xh-1; i++)
-    for (int j = 0; j < yh-1; j++){
-    Vec3 v_avg, n_star, acc_avg;
-    
-    // triangle 1
-    v_avg = (vel[i*yh+j].plus(vel[i*yh+j+1])).plus(vel[(i+1)*yh+j]);
-    v_avg.mul(1.0/3);
-    n_star = cross(pos[i*yh+j+1].minus(pos[i*yh+j]), pos[(i+1)*yh+j].minus(pos[i*yh+j]));
-    acc_avg = n_star.times(-0.5*k_aero*v_avg.length()*dot(v_avg, n_star)/2/n_star.length());
-    acc_avg.mul(1.0/3);
-    acc[i*yh+j].add(acc_avg);
-    acc[i*yh+j+1].add(acc_avg);
-    acc[(i+1)*yh+j].add(acc_avg);
-    
-    // triangle 2
-    v_avg = (vel[(i+1)*yh+j+1].plus(vel[i*yh+j+1])).plus(vel[(i+1)*yh+j]);
-    v_avg.mul(1.0/3);
-    n_star = cross(pos[i*yh+j+1].minus(pos[(i+1)*yh+j+1]), pos[(i+1)*yh+j].minus(pos[(i+1)*yh+j+1]));
-    acc_avg = n_star.times(-0.5*k_aero*v_avg.length()*dot(v_avg, n_star)/2/n_star.length());
-    acc_avg.mul(1.0/3);
-    acc[(i+1)*yh+j+1].add(acc_avg);
-    acc[i*yh+j+1].add(acc_avg);
-    acc[(i+1)*yh+j].add(acc_avg);
-    
-    // triangle 3
-    v_avg = (vel[(i+1)*yh+j].plus(vel[i*yh+j])).plus(vel[(i+1)*yh+j+1]);
-    v_avg.mul(1.0/3);
-    n_star = cross(pos[i*yh+j].minus(pos[(i+1)*yh+j]), pos[(i+1)*yh+j+1].minus(pos[(i+1)*yh+j]));
-    acc_avg = n_star.times(-0.5*k_aero*v_avg.length()*dot(v_avg, n_star)/2/n_star.length());
-    acc_avg.mul(1.0/3);
-    acc[(i+1)*yh+j].add(acc_avg);
-    acc[i*yh+j].add(acc_avg);
-    acc[(i+1)*yh+j+1].add(acc_avg);
-    
-    // triangle 4
-    v_avg = (vel[i*yh+j+1].plus(vel[i*yh+j])).plus(vel[(i+1)*yh+j+1]);
-    v_avg.mul(1.0/3);
-    n_star = cross(pos[i*yh+j].minus(pos[i*yh+j+1]), pos[(i+1)*yh+j+1].minus(pos[i*yh+j+1]));
-    acc_avg = n_star.times(-0.5*k_aero*v_avg.length()*dot(v_avg, n_star)/2/n_star.length());
-    acc_avg.mul(1.0/3);
-    acc[i*yh+j+1].add(acc_avg);
-    acc[i*yh+j].add(acc_avg);
-    acc[(i+1)*yh+j+1].add(acc_avg);
-    }
-  
   
   // update velocities and positions
   for (int j = 0; j < yh; j++){
