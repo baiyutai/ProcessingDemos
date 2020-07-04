@@ -44,7 +44,7 @@ void draw(){
   println(frameRate);
   cameraUpdate(0.05);
   obstacleUpdate(5.0);
-  for (int t = 0; t < frameRate; t++)
+  for (int t = 0; t < frameRate*3; t++)
     update(1.0/500);
   
   background(255);
