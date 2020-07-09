@@ -66,8 +66,7 @@ void pathQuality(){
   hitInfo hit;
   float segmentLength;
   numCollisions = 9999; pathLength = 9999;
-  if (curPath.get(0) == -1) return; //No path found
-  
+  if (curPath.size() > 0 && curPath.get(0) == -1) return; //No path found
   
   pathLength = 0; numCollisions = 0;
   
@@ -78,13 +77,12 @@ void pathQuality(){
     hit = rayCircleListIntersect(circlePos, circleRad, numObstacles, startPos, dir, segmentLength);
     if (hit.hit) numCollisions += 1;
   }
-  
+  else{
   segmentLength = startPos.distanceTo(nodePos[curPath.get(0)]);
   pathLength += segmentLength;
   dir = nodePos[curPath.get(0)].minus(startPos).normalized();
   hit = rayCircleListIntersect(circlePos, circleRad, numObstacles, startPos, dir, segmentLength);
   if (hit.hit) numCollisions += 1;
-  
   
   for (int i = 0; i < curPath.size()-1; i++){
     int curNode = curPath.get(i);
@@ -103,6 +101,7 @@ void pathQuality(){
   dir = goalPos.minus(nodePos[lastNode]).normalized();
   hit = rayCircleListIntersect(circlePos, circleRad, numObstacles, nodePos[lastNode], dir, segmentLength);
   if (hit.hit) numCollisions += 1;
+  }
 }
 
 Vec2 sampleFreePos(){
@@ -163,11 +162,12 @@ void draw(){
   stroke(100,100,100);
   strokeWeight(1);
   for (int i = 0; i < numNodes; i++){
-    for (int j = i+1; j < numNodes; j++)
-      if (neighbors[i][j]>0) line(nodePos[i].x,nodePos[i].y,nodePos[j].x,nodePos[j].y);
-    //for (int j : neighbors[i]){
-    //  line(nodePos[i].x,nodePos[i].y,nodePos[j].x,nodePos[j].y);
-    //}
+    Node curNode = graphNodes[i];
+    for (int j = 0; j < curNode.neighborNum; j++){
+      Integer neighborID = curNode.neighborID[j];
+      if (neighborID < numNodes)
+        line(nodePos[i].x,nodePos[i].y,nodePos[neighborID].x,nodePos[neighborID].y);
+    }
   }
   
   //Draw Start and Goal
@@ -178,12 +178,15 @@ void draw(){
   //circle(nodePos[goalNode].x,nodePos[goalNode].y,20);
   circle(goalPos.x,goalPos.y,20);
   
-  if (curPath.get(0) == -1) return;
+  if (curPath.size() > 0 && curPath.get(0) == -1) return;
   
   //Draw Planned Path
   stroke(20,255,40);
   strokeWeight(5);
-  if (curPath.size() < 1) return;
+  if (curPath.size() == 0){
+    line(startPos.x, startPos.y, goalPos.x, goalPos.y);
+    return;
+  }
   line(startPos.x,startPos.y,nodePos[curPath.get(0)].x,nodePos[curPath.get(0)].y);
   for (int i = 0; i < curPath.size()-1; i++){
     int curNode = curPath.get(i);

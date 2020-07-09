@@ -22,133 +22,129 @@
 //     always be bigger than the numNodes variable passed into planPath()
 //   - None of position in the nodePos array will be inside an obstacle
 //   - The start and the goal position will never be inside an obstacle
-
-// There are many useful functions in CollisionLibrary.pde and Vec2.pde
-// which you can draw on in your implementation. Please add any additional 
-// functionality you need to this file.
-
-// Here we provide a simple PRM implementation to get you started.
-// Be warned, this version has several important limitations.
-// For example, it use BFS which will not provide the shortest path
-// Also, it (wrongly) assumes the nodes closest to the start and goal
-// are the best nodes to start/end on your path on. Be sure to fix 
-// these and other issues as you work on this assignment (don't assume 
-// this example funcationality is correct and copy it's mistakes!).
-
-
-
-//Here, we represent our graph structure as a neighbor list
-//You can use any graph representation you like
-//ArrayList<Integer>[] neighbors = new ArrayList[maxNumNodes];  //A list of neighbors can can be reached from a given node
-float[][] neighbors = new float[maxNumNodes][maxNumNodes];
-//We also want some help arrays to keep track of some information about nodes we've visited
-Boolean[] visited = new Boolean[maxNumNodes]; //A list which store if a given node has been visited
-int[] parent = new int[maxNumNodes]; //A list which stores the best previous node on the optimal path to reach this node
-
-//Set which nodes are connected to which neighbors (graph edges) based on PRM rules
-void connectNeighbors(Vec2[] centers, float[] radii, int numObstacles, Vec2[] nodePos, int numNodes){
-  for (int i = 0; i < numNodes; i++){
-    //neighbors[i] = new ArrayList<Integer>();  //Clear neighbors list
-    for (int j = 0; j < i; j++) neighbors[i][j] = neighbors[j][i];
-    neighbors[i][i]=0;
-    for (int j = i+1; j < numNodes; j++){
-      //if (i == j) continue; //don't connect to myself 
-      Vec2 dir = nodePos[j].minus(nodePos[i]).normalized();
-      float distBetween = nodePos[i].distanceTo(nodePos[j]);
-      hitInfo circleListCheck = rayCircleListIntersect(centers, radii, numObstacles, nodePos[i], dir, distBetween);
-      if (!circleListCheck.hit){
-        neighbors[i][j] = distBetween;
-      }
-      else neighbors[i][j] = -1;
-    }
-  }
-}
-
-//This is probably a bad idea and you shouldn't use it...
-int closestNode(Vec2 point, Vec2[] nodePos, int numNodes){
-  int closestID = -1;
-  float minDist = 999999;
-  for (int i = 0; i < numNodes; i++){
-    float dist = nodePos[i].distanceTo(point);
-    if (dist < minDist){
-      closestID = i;
-      minDist = dist;
-    }
-  }
-  return closestID;
-}
+Node[] graphNodes = new Node[maxNumNodes+2];
+Boolean[] visited = new Boolean[maxNumNodes+2];
 
 ArrayList<Integer> planPath(Vec2 startPos, Vec2 goalPos, Vec2[] centers, float[] radii, int numObstacles, Vec2[] nodePos, int numNodes){
   ArrayList<Integer> path = new ArrayList();
   
-  connectNeighbors(centers, radii, numObstacles, nodePos, numNodes);
-  int startID = closestNode(startPos, nodePos, numNodes);
-  int goalID = closestNode(goalPos, nodePos, numNodes);
-  
-  path = runBFS(nodePos, numNodes, startID, goalID);
+  buildGraph(startPos, goalPos, centers, radii, numObstacles, nodePos, numNodes);
+  path = runAStar(graphNodes, numNodes+2, numNodes, numNodes+1);
   
   return path;
 }
 
-//BFS (Breadth First Search)
-ArrayList<Integer> runBFS(Vec2[] nodePos, int numNodes, int startID, int goalID){
-  ArrayList<Integer> fringe = new ArrayList();  //New empty fringe
-  ArrayList<Integer> path = new ArrayList();
-  for (int i = 0; i < numNodes; i++) { //Clear visit tags and parent pointers
-    visited[i] = false;
-    parent[i] = -1; //No parent yet
-  }
-
-  //println("\nBeginning Search");
+//UCS (Uniform cost search)
+import java.util.PriorityQueue;
+import java.util.Queue;
+ArrayList<Integer> runAStar(Node[] graphNodes, int numNodes, int startID, int goalID){
+  for (int i = 0; i < numNodes; i++) visited[i] = false;
   
-  visited[startID] = true;
-  fringe.add(startID);
-  //println("Adding node", startID, "(start) to the fringe.");
-  //println(" Current Fringe: ", fringe);
+  Queue<Node> pq = new PriorityQueue<Node>(new NodeComparator());
+  Node start = graphNodes[startID];
+  float g_cost = 0;
+  start.f_val = start.h_val + g_cost;
+  pq.add(start);
   
-  while (fringe.size() > 0){
-    int currentNode = fringe.get(0);
-    fringe.remove(0);
-    if (currentNode == goalID){
-      //println("Goal found!");
-      break;
-    }
-    for (int i = 0; i < numNodes; i++){
-      if (neighbors[currentNode][i] > 0){
-        int neighborNode = i;
-        if (!visited[neighborNode]){
-          visited[neighborNode] = true;
-          parent[neighborNode] = currentNode;
-          fringe.add(neighborNode);
+  while (!pq.isEmpty()){
+    Node curNode = pq.poll();
+    visited[curNode.ID] = true;
+    g_cost = curNode.f_val - curNode.h_val;
+    
+    // goal found
+    if (curNode.ID == goalID) break;
+    
+    // check neighbors of curNode
+    for (int i = 0; i < curNode.neighborNum; i++){
+      Integer childID = curNode.neighborID[i];
+      float edgeCost = curNode.neighborDist[i];
+      Node child = graphNodes[curNode.neighborID[i]];
+      
+      // skip if the neighbor is already visited
+      if (visited[childID] == true) continue;
+      
+      if (!pq.contains(child)){
+        child.f_val = child.h_val + g_cost + edgeCost;
+        child.parentID = curNode.ID;
+        pq.add(child);
+      }
+      else {
+        float childCost = child.f_val - child.h_val;
+        if (g_cost + edgeCost < childCost) {
+          child.parentID = curNode.ID;
+          child.f_val = child.h_val + g_cost + edgeCost;
         }
       }
-      //int neighborNode = neighbors[currentNode].get(i);
-      //if (!visited[neighborNode]){
-      //  visited[neighborNode] = true;
-      //  parent[neighborNode] = currentNode;
-      //  fringe.add(neighborNode);
-      //  //println("Added node", neighborNode, "to the fringe.");
-      //  //println(" Current Fringe: ", fringe);
-      //}
-    } 
+    }
   }
   
-  if (fringe.size() == 0){
-    //println("No Path");
-    path.add(0,-1);
-    return path;
+  ArrayList<Integer> path = new ArrayList();
+  Node iterNode = graphNodes[goalID];
+  if (iterNode.parentID == -1) {
+    path.add(-1);
   }
-    
-  //print("\nReverse path: ");
-  int prevNode = parent[goalID];
-  path.add(0,goalID);
-  //print(goalID, " ");
-  while (prevNode >= 0){
-    //print(prevNode," ");
-    path.add(0,prevNode);
-    prevNode = parent[prevNode];
+  else {
+    while (iterNode.parentID != startID){
+      iterNode = graphNodes[iterNode.parentID];
+      path.add(0, iterNode.ID);
+    }
   }
-  //print("\n");
-  
   return path;
+}
+
+void buildGraph(Vec2 startPos, Vec2 goalPos, Vec2[] centers, float[] radii, int numObstacles, Vec2[] nodePos, int numNodes){
+  // initialize a temporary nodepos array, add start & goal
+  Vec2[] tempNodePos = new Vec2[numNodes+2];
+  for (int i = 0; i < numNodes; i++)
+    tempNodePos[i] = nodePos[i];
+  tempNodePos[numNodes] = startPos;
+  tempNodePos[numNodes+1] = goalPos;
+  // compute h(node) = distance(node, goal)
+  for (int i = 0; i < numNodes+2; i++){
+    graphNodes[i] = new Node();
+    graphNodes[i].ID = i;
+    graphNodes[i].h_val = tempNodePos[i].distanceTo(goalPos);
+  }
+  // connect neighbors
+  for (int i = 0; i < numNodes+2; i++)
+    for (int j = i+1; j < numNodes+2; j++) {
+      Vec2 dir = tempNodePos[i].minus(tempNodePos[j]).normalized();
+      float dist = tempNodePos[i].distanceTo(tempNodePos[j]);
+      hitInfo hitCircles = rayCircleListIntersect(centers, radii, numObstacles, tempNodePos[j], dir, dist);
+      if (!hitCircles.hit) {
+        graphNodes[i].add(j, dist);
+        graphNodes[j].add(i, dist);
+      }
+    }
+}
+
+public class Node {
+  public Integer ID, parentID;
+  public float h_val;
+  public float f_val;
+  public Integer neighborNum;
+  public Integer[] neighborID = new Integer[maxNumNodes+1];
+  public float[] neighborDist = new float[maxNumNodes+1];
+  
+  public Node(){
+    h_val = 0;
+    f_val = 999999;
+    neighborNum = 0;
+    parentID = -1;
+  }
+  
+  public void add(int targetID, float targetDist){
+    neighborID[neighborNum] = targetID;
+    neighborDist[neighborNum] = targetDist;
+    neighborNum++;
+  }
+}
+
+import java.util.Comparator;
+class NodeComparator implements Comparator<Node>{
+  public int compare(Node a, Node b){
+    if (a.f_val > b.f_val) return 1;
+    if (a.f_val == b.f_val) return 0;
+    return -1;
+  }
 }
