@@ -22,121 +22,173 @@
 //     always be bigger than the numNodes variable passed into planPath()
 //   - None of position in the nodePos array will be inside an obstacle
 //   - The start and the goal position will never be inside an obstacle
-Node[] graphNodes = new Node[maxNumNodes+2];
-Boolean[] visited = new Boolean[maxNumNodes+2];
+ArrayList<Integer>[] neighbors = new ArrayList[maxNumNodes]; // adjency table, saved for HW3_Test
+float[][] edges = new float[numNodes+2][numNodes+2]; // adjency matrix
 
 ArrayList<Integer> planPath(Vec2 startPos, Vec2 goalPos, Vec2[] centers, float[] radii, int numObstacles, Vec2[] nodePos, int numNodes){
+  // build graph
+  buildGraph(centers, radii, numObstacles, nodePos, numNodes);
+
   ArrayList<Integer> path = new ArrayList();
-  
-  buildGraph(startPos, goalPos, centers, radii, numObstacles, nodePos, numNodes);
-  path = runAStar(graphNodes, numNodes+2, numNodes, numNodes+1);
-  
+  // add start & goal pos as new nodes
+  changeStartGoal(startPos, goalPos, centers, radii, numObstacles, nodePos, numNodes);
+  // see if start->goal can be linked directly
+  if (edges[numNodes][numNodes+1] >= 0)
+    return path;
+  // use AStar to find path
+  path = runAStar(startPos, goalPos, nodePos, numNodes);
   return path;
 }
 
-//UCS (Uniform cost search)
+// A-star
 import java.util.PriorityQueue;
 import java.util.Queue;
-ArrayList<Integer> runAStar(Node[] graphNodes, int numNodes, int startID, int goalID){
-  for (int i = 0; i < numNodes; i++) visited[i] = false;
+ArrayList<Integer> runAStar(Vec2 start, Vec2 goal, Vec2[] nodePos, int numNodes){
+  ArrayList<Integer> path = new ArrayList();
+  
+  // initialize pairs
+  Node[] graphNodes = new Node[numNodes+2];
+  for (int i = 0; i < numNodes+2; i++)
+    graphNodes[i] = new Node(i);
+  // compute h(node)
+  float[] h_val = new float[numNodes+2];
+  for (int i = 0; i < numNodes; i++)
+    h_val[i] = nodePos[i].distanceTo(goal);
+  h_val[numNodes] = start.distanceTo(goal);
+  h_val[numNodes+1] = 0.0;
+  // initialize visited array & parentID array
+  Boolean[] visited = new Boolean[numNodes+2];
+  Integer[] parentID = new Integer[numNodes+2];
+  for (int i = 0; i < numNodes+2; i++) {
+    visited[i] = false;
+    parentID[i] = -1;
+  } 
   
   Queue<Node> pq = new PriorityQueue<Node>(new NodeComparator());
-  Node start = graphNodes[startID];
+  Node startNode = graphNodes[numNodes];
   float g_cost = 0;
-  start.f_val = start.h_val + g_cost;
-  pq.add(start);
+  startNode.f_val = h_val[startNode.ID] + g_cost;
+  pq.add(startNode);
   
   while (!pq.isEmpty()){
     Node curNode = pq.poll();
     visited[curNode.ID] = true;
-    g_cost = curNode.f_val - curNode.h_val;
+    g_cost = curNode.f_val - h_val[curNode.ID];
     
     // goal found
-    if (curNode.ID == goalID) break;
+    if (curNode.ID == numNodes+1) break;
     
     // check neighbors of curNode
-    for (int i = 0; i < curNode.neighborNum; i++){
-      Integer childID = curNode.neighborID[i];
-      float edgeCost = curNode.neighborDist[i];
-      Node child = graphNodes[curNode.neighborID[i]];
+    for (int i = 0; i < numNodes+2; i++){
+      if (i == curNode.ID || edges[curNode.ID][i] < 0) continue;
+      Node child = graphNodes[i];
       
-      // skip if the neighbor is already visited
-      if (visited[childID] == true) continue;
+      // skip if the neighbor visited
+      if (visited[i] == true) continue;
       
+      // add if neighbor not in the priority queue
       if (!pq.contains(child)){
-        child.f_val = child.h_val + g_cost + edgeCost;
-        child.parentID = curNode.ID;
+        child.f_val = h_val[child.ID] + g_cost + edges[curNode.ID][i];
+        parentID[child.ID] = curNode.ID;
         pq.add(child);
       }
-      else {
-        float childCost = child.f_val - child.h_val;
-        if (g_cost + edgeCost < childCost) {
-          child.parentID = curNode.ID;
-          child.f_val = child.h_val + g_cost + edgeCost;
+      else { // update if a better path found
+        float childGCost = child.f_val - h_val[child.ID];
+        if (g_cost + edges[curNode.ID][i] < childGCost) {
+          parentID[child.ID] = curNode.ID;
+          child.f_val = h_val[child.ID] + g_cost + edges[curNode.ID][i];
         }
       }
     }
   }
   
-  ArrayList<Integer> path = new ArrayList();
-  Node iterNode = graphNodes[goalID];
-  if (iterNode.parentID == -1) {
+  Node iterNode = graphNodes[numNodes+1];
+  if (parentID[iterNode.ID] == -1) {
     path.add(-1);
   }
   else {
-    while (iterNode.parentID != startID){
-      iterNode = graphNodes[iterNode.parentID];
+    while (parentID[iterNode.ID] != numNodes){
+      iterNode = graphNodes[parentID[iterNode.ID]];
       path.add(0, iterNode.ID);
     }
   }
   return path;
 }
 
-void buildGraph(Vec2 startPos, Vec2 goalPos, Vec2[] centers, float[] radii, int numObstacles, Vec2[] nodePos, int numNodes){
-  // initialize a temporary nodepos array, add start & goal
-  Vec2[] tempNodePos = new Vec2[numNodes+2];
+void buildGraph(Vec2[] centers, float[] radii, int numObstacles, Vec2[] nodePos, int numNodes){
+  // initialize neighbors
   for (int i = 0; i < numNodes; i++)
-    tempNodePos[i] = nodePos[i];
-  tempNodePos[numNodes] = startPos;
-  tempNodePos[numNodes+1] = goalPos;
-  // compute h(node) = distance(node, goal)
-  for (int i = 0; i < numNodes+2; i++){
-    graphNodes[i] = new Node();
-    graphNodes[i].ID = i;
-    graphNodes[i].h_val = tempNodePos[i].distanceTo(goalPos);
-  }
+    neighbors[i] = new ArrayList<Integer>();
   // connect neighbors
-  for (int i = 0; i < numNodes+2; i++)
-    for (int j = i+1; j < numNodes+2; j++) {
-      Vec2 dir = tempNodePos[i].minus(tempNodePos[j]).normalized();
-      float dist = tempNodePos[i].distanceTo(tempNodePos[j]);
-      hitInfo hitCircles = rayCircleListIntersect(centers, radii, numObstacles, tempNodePos[j], dir, dist);
+  for (int i = 0; i < numNodes; i++){
+    edges[i][i] = 0;
+    for (int j = i+1; j < numNodes; j++) {
+      Vec2 dir = nodePos[i].minus(nodePos[j]).normalized();
+      float dist = nodePos[i].distanceTo(nodePos[j]);
+      hitInfo hitCircles = rayCircleListIntersect(centers, radii, numObstacles, nodePos[j], dir, dist);
       if (!hitCircles.hit) {
-        graphNodes[i].add(j, dist);
-        graphNodes[j].add(i, dist);
+        neighbors[i].add(j);
+        neighbors[j].add(i);
+        edges[i][j] = dist;
+        edges[j][i] = dist;
+      }
+      else {
+        edges[i][j] = -1;
+        edges[j][i] = -1;
       }
     }
+  }
+}
+
+void changeStartGoal(Vec2 start, Vec2 goal, Vec2[] centers, float[] radii, int numObstacles, Vec2[] nodePos, int numNodes){
+  // test if start->goal can be linked directly
+  Vec2 dir = goal.minus(start).normalized();
+  float dist = goal.distanceTo(start);
+  hitInfo hitCircles = rayCircleListIntersect(centers, radii, numObstacles, start, dir, dist);
+  if (!hitCircles.hit) {
+    edges[numNodes][numNodes+1] = dist;
+    edges[numNodes+1][numNodes] = dist;
+    return;
+  }
+  edges[numNodes][numNodes+1] = -1;
+  edges[numNodes+1][numNodes] = -1;
+  
+  // add new edges with start & end
+  for (int i = 0; i < numNodes; i++){
+    // detect with start
+    dir = nodePos[i].minus(start).normalized();
+    dist = nodePos[i].distanceTo(start);
+    hitCircles = rayCircleListIntersect(centers, radii, numObstacles, start, dir, dist);
+    if (!hitCircles.hit) {
+      edges[i][numNodes] = dist;
+      edges[numNodes][i] = dist;
+    }
+    else {
+      edges[i][numNodes] = -1;
+      edges[numNodes][i] = -1;
+    }
+    // detect with goal
+    dir = nodePos[i].minus(goal).normalized();
+    dist = nodePos[i].distanceTo(goal);
+    hitCircles = rayCircleListIntersect(centers, radii, numObstacles, goal, dir, dist);
+    if (!hitCircles.hit) {
+      edges[i][numNodes+1] = dist;
+      edges[numNodes+1][i] = dist;
+    }
+    else {
+      edges[i][numNodes+1] = -1;
+      edges[numNodes+1][i] = -1;
+    }
+  }
 }
 
 public class Node {
-  public Integer ID, parentID;
-  public float h_val;
+  public Integer ID;
   public float f_val;
-  public Integer neighborNum;
-  public Integer[] neighborID = new Integer[maxNumNodes+1];
-  public float[] neighborDist = new float[maxNumNodes+1];
   
-  public Node(){
-    h_val = 0;
+  public Node(int id){
+    ID = id;
     f_val = 999999;
-    neighborNum = 0;
-    parentID = -1;
-  }
-  
-  public void add(int targetID, float targetDist){
-    neighborID[neighborNum] = targetID;
-    neighborDist[neighborNum] = targetDist;
-    neighborNum++;
   }
 }
 
