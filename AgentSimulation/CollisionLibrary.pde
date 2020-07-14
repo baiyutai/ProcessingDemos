@@ -10,6 +10,15 @@ boolean pointInBox(Vec2 boxTopLeft, float boxW, float boxH, Vec2 pointPos){
   return false;
 }
 
+//Returns true if the point is inside a list of boxes
+boolean pointInBoxList(Vec2[] boxTopLeft, float[] boxW, float[] boxH, int numBoxes, Vec2 pointPos){
+  for (int i = 0; i < numBoxes; i++){
+    if (pointInBox(boxTopLeft[i], boxW[i], boxH[i], pointPos))
+      return true;
+  }
+  return false;
+}
+
 //Returns true if the point is inside a circle
 boolean pointInCircle(Vec2 center, float r, Vec2 pointPos){
   float dist = pointPos.distanceTo(center);
@@ -77,6 +86,23 @@ hitInfo rayBoxIntersect(Vec2 boxTopLeft, float boxW, float boxH, Vec2 ray_start,
     hit.hit = false;  }
   
   hit.t = t_min;
+  return hit;
+}
+
+hitInfo rayBoxListIntersect(Vec2[] boxTopLeft, float[] boxW, float[] boxH,  int numBoxes, Vec2 l_start, Vec2 l_dir, float max_t){
+  hitInfo hit = new hitInfo();
+  hit.t = max_t;
+  for (int i = 0; i < numBoxes; i++){
+    hitInfo boxHit = rayBoxIntersect(boxTopLeft[i], boxW[i], boxH[i], l_start, l_dir, hit.t);
+    if (boxHit.t > 0 && boxHit.t < hit.t){
+      hit.hit = true;
+      hit.t = boxHit.t;
+    }
+    else if (boxHit.hit && boxHit.t < 0){
+      hit.hit = true;
+      hit.t = -1;
+    }
+  }
   return hit;
 }
 
