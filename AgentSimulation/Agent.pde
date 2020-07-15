@@ -6,7 +6,7 @@ class Agent{
   
   Agent(Vec2 position, float radius){
     pos = new Vec2(position.x, position.y);
-    rad = radius;
+    rad = radius/2.0;
   }
   
   boolean addGoal(Vec2 newGoal){
@@ -16,13 +16,28 @@ class Agent{
     return true;
   }
   
-  void step(float stepLen){
+  void step(float stepLen,
+            Vec2[] circlePos, float[] circleRad, int circleNum,
+            Vec2[] boxPos, float[] boxW, float[] boxH, int boxNum){
+    while (numGoals > 1){
+      int secondGoal = (firstGoal+1) % maxGoals;
+      Vec2 dir = goals[secondGoal].minus(pos).normalized();
+      float dist = goals[secondGoal].distanceTo(pos);
+      hitInfo circleHit = rayCircleListIntersect(circlePos, circleRad, circleNum, pos, dir, dist);
+      hitInfo boxHit = rayBoxListIntersect(boxPos, boxW, boxH, boxNum, pos, dir, dist);
+      if (!circleHit.hit && !boxHit.hit) {
+        firstGoal = secondGoal;
+        numGoals--;
+      }
+      else
+        break;
+    }
     if (numGoals == 0) return;
     
     Vec2 goalPos = goals[firstGoal];
     Vec2 vel = goalPos.minus(pos).normalized();
     float dist = goalPos.distanceTo(pos);
-    // if reach the goal, move it from the list
+    // if reach the goal, remove it from the list
     if (dist < stepLen) {
       pos.x = goalPos.x;
       pos.y = goalPos.y;

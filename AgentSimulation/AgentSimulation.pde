@@ -57,7 +57,7 @@ void setup(){
 }
 
 void draw(){
-  myAgent.step(1.0);
+  myAgent.step(1.0, circlePos, circleRad, numCircle, boxTopLeft, boxW, boxH, numBox);
   cameraUpdate(0.05);
   
   //println("FrameRate:",frameRate);
