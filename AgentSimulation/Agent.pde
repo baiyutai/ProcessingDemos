@@ -35,6 +35,9 @@ class Agent{
   }
     
   void display(){
-    circle(pos.x, pos.y, rad*2);
+    pushMatrix();
+    translate(pos.x, pos.y, 0);
+    sphere(rad);
+    popMatrix();
   }
 }

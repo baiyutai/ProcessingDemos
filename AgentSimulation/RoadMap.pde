@@ -53,8 +53,6 @@ class RoadMap{
   void displayPath(Vec2 startPos, Vec2 goalPos, ArrayList<Integer> path){
     if (path.size() == 1 && path.get(0) == -1) return; // stop if no path exists
     // draw settings
-    stroke(20,255,40);
-    strokeWeight(5);
     if (path.size() == 0)
       line(startPos.x, startPos.y, goalPos.x, goalPos.y);
     else{
